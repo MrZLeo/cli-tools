@@ -27,7 +27,7 @@
                   "--no-managed-python"
                   "--no-python-downloads"
                   "--python"
-                  "python3.13"
+                  "python3"
                   "--from"
                   "excel-mcp-server==2.0.0"
                   "excel-mcp-server"
@@ -60,7 +60,7 @@
             runtimeInputs = [
               pkgs.coreutils
               pkgs.pi-coding-agent
-              pkgs.python313
+              pkgs.python3
               pkgs.uv
             ];
             text = ''
