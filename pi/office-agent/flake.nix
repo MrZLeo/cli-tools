@@ -58,30 +58,51 @@
           piOffice = pkgs.writeShellApplication {
             name = "pi-office";
             runtimeInputs = [
-              pkgs.coreutils
               pkgs.pi-coding-agent
               pkgs.python3
               pkgs.uv
             ];
             text = ''
               export PI_CODING_AGENT_DIR="$HOME/.pi/office-agent"
-              umask 077
-              mkdir -p "$PI_CODING_AGENT_DIR"
+              exec pi "$@"
+            '';
+          };
 
-              # Seed once: subsequent launches must preserve user configuration.
+          piOfficeSetup = pkgs.writeShellApplication {
+            name = "pi-office-setup";
+            runtimeInputs = [ pkgs.coreutils ];
+            text = ''
+              export PI_CODING_AGENT_DIR="$HOME/.pi/office-agent"
+              umask 077
+
+              auth_file="$HOME/.pi/agent/auth.json"
+              if [[ ! -f "$auth_file" || ! -O "$auth_file" || "$(stat -c %a -- "$auth_file")" != 600 ]]; then
+                echo "Main Pi auth.json must exist, belong to you, and have mode 600." >&2
+                exit 1
+              fi
+              mkdir -p "$PI_CODING_AGENT_DIR"
+              chmod 700 "$PI_CODING_AGENT_DIR"
+              [[ "$PI_CODING_AGENT_DIR/auth.json" -ef "$auth_file" ]] ||
+                ln -sfnT -- "$auth_file" "$PI_CODING_AGENT_DIR/auth.json"
+
+              # Seed once: repeated setup must preserve user configuration.
               if [[ ! -e "$PI_CODING_AGENT_DIR/mcp.json" && ! -L "$PI_CODING_AGENT_DIR/mcp.json" ]]; then
                 install -m 600 ${mcpConfig} "$PI_CODING_AGENT_DIR/mcp.json"
               fi
               if [[ ! -e "$PI_CODING_AGENT_DIR/settings.json" && ! -L "$PI_CODING_AGENT_DIR/settings.json" ]]; then
                 install -m 600 ${settingsConfig} "$PI_CODING_AGENT_DIR/settings.json"
               fi
-
-              exec pi "$@"
             '';
           };
         in
         {
-          default = piOffice;
+          default = pkgs.symlinkJoin {
+            name = "pi-office";
+            paths = [
+              piOffice
+              piOfficeSetup
+            ];
+          };
         }
       );
       checks = forAllSystems (system: {
